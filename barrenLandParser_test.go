@@ -7,7 +7,7 @@ import (
 
 func TestParseArgs(t *testing.T) {
 	testString := []string{"0 292 399 307", "0 292 399 307"}
-	parsedPairs := ParseArgs(testString)
+	parsedPairs, err := ParseArgs(testString)
 	var expected = 2
 	var stringLen = len(parsedPairs)
 	if stringLen != expected {
@@ -15,38 +15,45 @@ func TestParseArgs(t *testing.T) {
 	}
 
 	invalidCoordNum := append(testString, "42")
-	if ParseArgs(invalidCoordNum) != nil {
+	_, err = ParseArgs(invalidCoordNum)
+	if err == nil {
 		t.Errorf("Expected return value of nil")
 	}
 
 	invalidXCoord := append(testString, "BADX 42 399 499")
-	if ParseArgs(invalidXCoord) != nil {
+	_, err = ParseArgs(invalidXCoord)
+	if err == nil {
 		t.Errorf("Expected return value of nil because of non-integer X coordinate")
 	}
 
 	invalidYCoord := append(testString, "42 BADY 399 499")
-	if ParseArgs(invalidYCoord) != nil {
+	_, err = ParseArgs(invalidYCoord)
+	if err == nil {
 		t.Errorf("Expected return value of nil because of non-integer Y coordinate")
 	}
 
 	OOBXCoord := append(testString, "500 42 399 499")
-	if ParseArgs(OOBXCoord) != nil {
-		t.Errorf("Expected return value of nil because of OOB X coordinate")
+	_, err = ParseArgs(OOBXCoord)
+	if err == nil {
+		t.Errorf("Expected return value of nil because of OOB XS coordinate")
 	}
 
 	OOBYCoord := append(testString, "42 700 399 499")
-	if ParseArgs(OOBYCoord) != nil {
-		t.Errorf("Expected return value of nil because of OOB Y coordinate")
+	_, err = ParseArgs(OOBYCoord)
+	if err == nil {
+		t.Errorf("Expected return value of nil because of OOB YS coordinate")
 	}
 
-	OOBXCoord = append(testString, "-1 42 399 499")
-	if ParseArgs(OOBXCoord) != nil {
-		t.Errorf("Expected return value of nil because of OOB X coordinate")
+	OOBXCoord = append(testString, "0 42 -1 499")
+	_, err = ParseArgs(OOBXCoord)
+	if err == nil {
+		t.Errorf("Expected return value of nil because of negative XE coordinate")
 	}
 
-	OOBYCoord = append(testString, "42 -1 399 499")
-	if ParseArgs(OOBYCoord) != nil {
-		t.Errorf("Expected return value of nil because of OOB Y coordinate")
+	OOBYCoord = append(testString, "42 0 399 -1")
+	_, err = ParseArgs(OOBYCoord)
+	if err == nil {
+		t.Errorf("Expected return value of nil because of negative YE coordinate")
 	}
 }
 
@@ -62,7 +69,11 @@ func TestDelimiters(t *testing.T) {
 func TestBFS(t *testing.T) {
 	testString := []string{"0 292 399 307"}
 	expectedArea := []int{116800, 116800}
-	bl := ParseArgs(testString)
+	bl, err := ParseArgs(testString)
+	if err != nil {
+		t.Errorf("Unable to parse test string (%s)", err.Error())
+	}
+
 	area := BFS(bl)
 	for i, v := range area {
 		if v != expectedArea[i] {
@@ -74,7 +85,11 @@ func TestBFS(t *testing.T) {
 	testString = []string{"48 192 351 207", "48 392 351 407",
 		"120 52 135 547", "260 52 275 547"}
 	expectedArea = []int{22816, 192608}
-	bl = ParseArgs(testString)
+	bl, err = ParseArgs(testString)
+	if err != nil {
+		t.Errorf("Unable to parse test string (%s)", err.Error())
+	}
+
 	area = BFS(bl)
 	for i, v := range area {
 		if v != expectedArea[i] {

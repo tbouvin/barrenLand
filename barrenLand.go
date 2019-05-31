@@ -9,14 +9,28 @@ import (
 	"strings"
 )
 
-const FARMX = 400
-const FARMY = 600
+// UPPERX -Upper bounds of X-coordinate of farm
+const UPPERX = 400
+
+// UPPERY -Upper bounds of Y-coordinate of farm
+const UPPERY = 600
+
+// Vertex -struct to represent x-y coordinates on grid
+type Vertex struct {
+	x, y int
+}
+
+// ExcludedArea -struct defining bottom left x-y corrdinates of barren land (s)
+// and top right x-y coordinates of barren land (e)
+type ExcludedArea struct {
+	start, end Vertex
+}
 
 /*
  * Implement a Breadth-First Search to traverse the grid and find all sections
- * of fertile/barren land.
+ * of fertile land.
  *
- * Think of the grid as a connected graph.
+ * Think of the grid as a disconnected graph.
  * Each fertile vertex is connected to its adjacent fertile vertices.
  * Each barren vertex is connected to its adjacent barren vertices.
  * A barren vertex CANNOT be connected to a fertile vertice and vice-versa
@@ -24,14 +38,36 @@ const FARMY = 600
  * Because the graph is disconnected, we need to ensure that all vertices are
  * traversed. To do this, the main body should be enclosed in a loop that
  * starts at (0,0) and checks if that vertex has been visited. If not, then
- * perform BFS starting at that vertex.
+ * perform BFS starting at that vertex. If it has been visited, then continue to
+ * the next vertex in the list. Each loop of the BFS function will find a different
+ * fertile regions area.
+ *
+ * When performing BFS for a particular vertex, the follwoing should be performed
+ *	while vertices in queue
+ *		pop vertex off queue
+ *  	increment area for current BFS loop
+ *  	for each adjacent neighbor:
+ *			add neighbor to queue
+ *			mark neighbor as visited
+ * 	return area
+ *
+ * We only need to calculate each area of fertile land. This means that all barren
+ * areas can be marked as visited during construction of the grid.
  */
 
 func main() {
-	args := os.Args[1:]
-	bl := ParseArgs(args)
+	if len(os.Args) < 2 {
+		fmt.Printf("Not enough arguments\n")
+		return
+	}
 
-	land := BFS(bl)
+	args := os.Args[1:]
+	ex, err := ParseArgs(args)
+	if err != nil {
+		fmt.Printf("Error parsing arguments %s (%s)\n", args, err.Error())
+	}
+
+	land := BFS(ex)
 	for v := range land {
 		fmt.Printf("%d ", land[v])
 	}
@@ -39,27 +75,24 @@ func main() {
 	fmt.Printf("\n")
 }
 
+// Delimiters -list of runes that the input string should be split on. If the provided rune
+// matches any of the defined runes 'true' is returned
 func Delimiters(r rune) bool {
-	return r == '{' || r == '}' || r == ',' || r == ' ' || r == '"'
+	return (r == '{' || r == '}' || r == ',' || r == ' ' || r == '"' || r == '”' || r == '“')
 }
 
-type Point struct {
-	x, y int
-}
-
-type BarrenLand struct {
-	s, e Point
-}
-
-func ParseArgs(parts []string) []BarrenLand {
+// ParseArgs -Parses the input string and returns a ExcludedArea array that defines all
+// rectangular barren regions.
+// nil is returned if input string is invalid
+func ParseArgs(parts []string) ([]ExcludedArea, error) {
 	newString := strings.Join(parts, " ")
 	parsedString := strings.FieldsFunc(newString, Delimiters)
 	parsedStringLen := len(parsedString)
 	if parsedStringLen%4 != 0 {
-		return nil
+		return nil, errors.New("INVCOORDCNT")
 	}
 
-	var barrenCoords []BarrenLand
+	var excluded []ExcludedArea
 	for i := 0; i < parsedStringLen; i += 4 {
 		unvalidatedCoords := [4]string{
 			parsedString[i],
@@ -70,43 +103,51 @@ func ParseArgs(parts []string) []BarrenLand {
 		validCoords, err := ValidateCoordinates(unvalidatedCoords)
 		if err != nil {
 			fmt.Printf("Error validating coordinates %s\n", err.Error())
-			return nil
+			return nil, err
 		}
 
-		barrenCoords = append(barrenCoords, validCoords)
+		excluded = append(excluded, validCoords)
 	}
 
-	return barrenCoords
+	return excluded, nil
 }
 
-func ValidateCoordinates(unvalidCoords [4]string) (BarrenLand, error) {
-	var ret BarrenLand
+func ValidateCoordinates(unvalidCoords [4]string) (ExcludedArea, error) {
+	var coord ExcludedArea
 	var xserr, yserr, xeerr, yeerr error
-	ret.s.x, xserr = strconv.Atoi(unvalidCoords[0])
-	ret.s.y, yserr = strconv.Atoi(unvalidCoords[1])
-	ret.e.x, xeerr = strconv.Atoi(unvalidCoords[2])
-	ret.e.y, yeerr = strconv.Atoi(unvalidCoords[3])
+	coord.start.x, xserr = strconv.Atoi(unvalidCoords[0])
+	coord.start.y, yserr = strconv.Atoi(unvalidCoords[1])
+	coord.end.x, xeerr = strconv.Atoi(unvalidCoords[2])
+	coord.end.y, yeerr = strconv.Atoi(unvalidCoords[3])
 
 	if xserr != nil || yserr != nil || xeerr != nil || yeerr != nil {
-		return ret, errors.New("INVCOORD")
+		return coord, errors.New("INVCOORD")
 	}
 
-	if ret.s.x < 0 || ret.s.x >= FARMX {
-		return ret, errors.New("INVCOORD")
+	if coord.start.x < 0 || coord.start.x >= UPPERX {
+		return coord, errors.New("XSOOB")
 	}
 
-	if ret.s.y < 0 || ret.s.y >= FARMY {
-		return ret, errors.New("INVCOORD")
+	if coord.start.y < 0 || coord.start.y >= UPPERY {
+		return coord, errors.New("YSOOB ")
 	}
 
-	return ret, nil
+	if coord.end.x < 0 || coord.end.x >= UPPERX {
+		return coord, errors.New("XEOOB")
+	}
+
+	if coord.end.y < 0 || coord.end.y >= UPPERY {
+		return coord, errors.New("YEOOB ")
+	}
+
+	return coord, nil
 }
 
-func isPointBarren(p Point, bl []BarrenLand) bool {
-	//Check if point is barren
-	for i := 0; i < len(bl); i++ {
-		if p.x >= bl[i].s.x && p.x <= bl[i].e.x &&
-			p.y >= bl[i].s.y && p.y <= bl[i].e.y {
+func isVertexBarren(p Vertex, ex []ExcludedArea) bool {
+	//Check if vertex is barren
+	for _, i := range ex {
+		if p.x >= i.start.x && p.x <= i.end.x &&
+			p.y >= i.start.y && p.y <= i.end.y {
 			// It is barren
 			return true
 		}
@@ -115,57 +156,65 @@ func isPointBarren(p Point, bl []BarrenLand) bool {
 	return false
 }
 
-func isPointInbounds(p Point) bool {
-	if p.x >= 0 && p.x < FARMX && p.y >= 0 && p.y < FARMY {
+func isVertexInbounds(p Vertex) bool {
+	if p.x >= 0 && p.x < UPPERX && p.y >= 0 && p.y < UPPERY {
 		return true
 	}
 
 	return false
 }
 
-func GetAdjacentPoints(p Point, bl []BarrenLand) []Point {
-	var adj []Point
-	barren := isPointBarren(p, bl)
+func GetAdjacentVertices(p Vertex, ex []ExcludedArea) []Vertex {
+	var adj []Vertex
+	barren := isVertexBarren(p, ex)
 
-	rightAdj := Point{x: p.x + 1, y: p.y}
-	if isPointInbounds(rightAdj) && (isPointBarren(rightAdj, bl) == barren) {
+	rightAdj := Vertex{x: p.x + 1, y: p.y}
+	if isVertexInbounds(rightAdj) && (isVertexBarren(rightAdj, ex) == barren) {
 		adj = append(adj, rightAdj)
 	}
 
-	leftAdj := Point{x: p.x - 1, y: p.y}
-	if isPointInbounds(leftAdj) && (isPointBarren(rightAdj, bl) == barren) {
+	leftAdj := Vertex{x: p.x - 1, y: p.y}
+	if isVertexInbounds(leftAdj) && (isVertexBarren(rightAdj, ex) == barren) {
 		adj = append(adj, leftAdj)
 	}
 
-	upAdj := Point{x: p.x, y: p.y + 1}
-	if isPointInbounds(upAdj) && (isPointBarren(upAdj, bl) == barren) {
+	upAdj := Vertex{x: p.x, y: p.y + 1}
+	if isVertexInbounds(upAdj) && (isVertexBarren(upAdj, ex) == barren) {
 		adj = append(adj, upAdj)
 	}
 
-	downAdj := Point{x: p.x, y: p.y - 1}
-	if isPointInbounds(downAdj) && (isPointBarren(downAdj, bl) == barren) {
+	downAdj := Vertex{x: p.x, y: p.y - 1}
+	if isVertexInbounds(downAdj) && (isVertexBarren(downAdj, ex) == barren) {
 		adj = append(adj, downAdj)
 	}
 
 	return adj
 }
 
-func ConstructMap(bl []BarrenLand) (map[Point][]Point, map[Point]bool) {
-	var m map[Point][]Point
-	var v map[Point]bool
-	m = make(map[Point][]Point)
-	v = make(map[Point]bool)
+// ConstructMap - Builds an adjacency map (adj) with a key for each x-y vertex and
+// it's value is all adjacent neighbors. Neighbor are adjacent if they share the
+// same state (Barren/Fertile)
+//
+// A visited map (v) is also constructed with a key for each x-y vertex and it's
+// value is if the vertex has been visited by BFS.
+// NOTE: a vertex is marked as visited if it is in an excluded region
+func ConstructMap(ex []ExcludedArea) (map[Vertex][]Vertex, map[Vertex]bool) {
+	// Create necessary maps
+	var adj map[Vertex][]Vertex
+	var v map[Vertex]bool
+	adj = make(map[Vertex][]Vertex)
+	v = make(map[Vertex]bool)
 
-	for i := 0; i < FARMX; i++ {
-		for j := 0; j < FARMY; j++ {
-			cur := Point{x: i, y: j}
-			m[cur] = GetAdjacentPoints(cur, bl)
-			// fmt.Printf("Adj Point: (%d, %d): ", cur.x, cur.y)
-			// fmt.Println(m[cur])
+	for i := 0; i < UPPERX; i++ {
+		for j := 0; j < UPPERY; j++ {
+			cur := Vertex{x: i, y: j}
+			// Find all adjacent vertices for the current vertex and pass them to
+			// the adjacency map
+			adj[cur] = GetAdjacentVertices(cur, ex)
 
-			//The barren areas don't need to be traversed, so mark as visited
-			//from the get-go
-			if isPointBarren(cur, bl) {
+			// The barren areas don't need to be traversed, so mark as visited
+			// from the get-go
+			if isVertexBarren(cur, ex) {
 				v[cur] = true
 			} else {
 				v[cur] = false
@@ -173,27 +222,34 @@ func ConstructMap(bl []BarrenLand) (map[Point][]Point, map[Point]bool) {
 		}
 	}
 
-	return m, v
+	return adj, v
 }
 
-//Every time this runs, it fills out another spot of land
-func BFSLoop(s Point, m map[Point][]Point, v map[Point]bool, bl []BarrenLand) int {
+// BFSLoop - Every time this runs, it retrieves an area of fertile land
+// The loop will find adjacent neighbors and increment the area until there
+// are no more adjacent neighbors.
+func BFSLoop(s Vertex, adj map[Vertex][]Vertex, v map[Vertex]bool, ex []ExcludedArea) int {
 	area := 0
+	// Set the starting vertex to visited
 	v[s] = true
-	var q []Point
+	var q []Vertex
+	// Add the starting vertex to the queue
 	q = append(q, s)
-	//While the queue is not empty, perform a search
+	// While the queue is not empty, perform a search
 	for len(q) > 0 {
+		// get vertex at front of queue
 		cur := q[0]
-		q = q[1:] //pop
-		// fmt.Printf("Point: (%d, %d)\n", cur.x, cur.y)
+		// pop off queue
+		q = q[1:]
+		// Another vertex has been added to this area, increment accordingly
 		area++
-		//Get adjacent points for current point
-		adj := m[cur]
-		for i := 0; i < len(adj); i++ {
-			if !v[adj[i]] {
-				v[adj[i]] = true
-				q = append(q, adj[i])
+		// Get adjacent vertices for current vertex
+		neigh := adj[cur]
+		for i := 0; i < len(neigh); i++ {
+			// If neighbor has not been visited, then mark as visited and push to queue
+			if !v[neigh[i]] {
+				v[neigh[i]] = true
+				q = append(q, neigh[i])
 			}
 		}
 	}
@@ -201,21 +257,25 @@ func BFSLoop(s Point, m map[Point][]Point, v map[Point]bool, bl []BarrenLand) in
 	return area
 }
 
-func BFS(bl []BarrenLand) []int {
-	var fertileLands []int
-	m, v := ConstructMap(bl)
-	// count := 0
-	for i := 0; i < FARMX; i++ {
-		for j := 0; j < FARMY; j++ {
-			cur := Point{x: i, y: j}
+// BFS - Entry point for the BFS algorithm, BFS will attempt to perform on each
+// unvisited vertex. This ensures that even if the grid is disconnected that all
+// regions will be traversed (besides excluded regions)
+func BFS(ex []ExcludedArea) []int {
+	var areaList []int
+	// Construct maps needed for BFS
+	m, v := ConstructMap(ex)
+	for i := 0; i < UPPERX; i++ {
+		for j := 0; j < UPPERY; j++ {
+			cur := Vertex{x: i, y: j}
+			// Only perform BFS on vertices that have not been visited. If a vertex
+			// has been visited, then its area has already been accounted for.
 			if !v[cur] {
-				// fmt.Printf("Count: %d\n", count)
-				// count++
-				fertileLands = append(fertileLands, BFSLoop(cur, m, v, bl))
+				areaList = append(areaList, BFSLoop(cur, m, v, ex))
 			}
 		}
 	}
 
-	sort.Ints(fertileLands)
-	return fertileLands
+	// sort the list from smallest to largest
+	sort.Ints(areaList)
+	return areaList
 }
