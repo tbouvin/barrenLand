@@ -1,3 +1,9 @@
+/*
+ * File: barrenLand_test.go
+ * Author: Taylor Bouvin
+ * Date: 5/31/19
+ */
+
 package main
 
 import (
@@ -8,6 +14,10 @@ import (
 func TestParseArgs(t *testing.T) {
 	testString := []string{"0 292 399 307", "0 292 399 307"}
 	parsedPairs, err := ParseArgs(testString)
+	if err != nil {
+		t.Errorf("Error parsing arguments")
+	}
+
 	var expected = 2
 	var stringLen = len(parsedPairs)
 	if stringLen != expected {
@@ -69,12 +79,8 @@ func TestDelimiters(t *testing.T) {
 func TestBFS(t *testing.T) {
 	testString := []string{"0 292 399 307"}
 	expectedArea := []int{116800, 116800}
-	bl, err := ParseArgs(testString)
-	if err != nil {
-		t.Errorf("Unable to parse test string (%s)", err.Error())
-	}
+	area := FindFertileLand(testString)
 
-	area := BFS(bl)
 	for i, v := range area {
 		if v != expectedArea[i] {
 			t.Errorf("Area calculated for test1 was not correct")
@@ -85,16 +91,19 @@ func TestBFS(t *testing.T) {
 	testString = []string{"48 192 351 207", "48 392 351 407",
 		"120 52 135 547", "260 52 275 547"}
 	expectedArea = []int{22816, 192608}
-	bl, err = ParseArgs(testString)
-	if err != nil {
-		t.Errorf("Unable to parse test string (%s)", err.Error())
-	}
+	area = FindFertileLand(testString)
 
-	area = BFS(bl)
 	for i, v := range area {
 		if v != expectedArea[i] {
 			t.Errorf("Area calculated for test1 was not correct")
 		}
 	}
 	fmt.Printf("Area: %d\n", area)
+
+	testString = []string{"48 192 351 207", "48 392 351 407",
+		"120 52 135 547", "260 52 275 1000"}
+	area = FindFertileLand(testString)
+	if area != nil {
+		t.Errorf("Invalid coordinates should have caused FindFertileLands to return nil")
+	}
 }

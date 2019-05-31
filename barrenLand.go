@@ -1,32 +1,15 @@
-package main
-
-import (
-	"errors"
-	"fmt"
-	"os"
-	"sort"
-	"strconv"
-	"strings"
-)
-
-// UPPERX -Upper bounds of X-coordinate of farm
-const UPPERX = 400
-
-// UPPERY -Upper bounds of Y-coordinate of farm
-const UPPERY = 600
-
-// Vertex -struct to represent x-y coordinates on grid
-type Vertex struct {
-	x, y int
-}
-
-// ExcludedArea -struct defining bottom left x-y corrdinates of barren land (s)
-// and top right x-y coordinates of barren land (e)
-type ExcludedArea struct {
-	start, end Vertex
-}
-
 /*
+ * File: barrenLand.go
+ * Author: Taylor Bouvin
+ * Date: 5/31/19
+ *
+ * Barren Land Analysis
+ * Objective - You have a farm of 400m by 600m where coordinates of the field are
+ * from (0, 0) to (399, 599). A portion of the farm is barren, and all the barren
+ * land is in the form of rectangles. Due to these rectangles of barren land, the
+ * remaining area of fertile land is in no particular shape. An area of fertile
+ * land is defined as the largest area of land that is not covered by any of the
+ * rectangles of barren land. Read input from STDIN. Print output to STDOUT
  * Implement a Breadth-First Search to traverse the grid and find all sections
  * of fertile land.
  *
@@ -55,16 +38,54 @@ type ExcludedArea struct {
  * areas can be marked as visited during construction of the grid.
  */
 
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+// UPPERX - Upper bounds of X-coordinate of farm
+const UPPERX = 400
+
+// UPPERY - Upper bounds of Y-coordinate of farm
+const UPPERY = 600
+
+// Vertex - struct to represent x-y coordinates on grid
+type Vertex struct {
+	x, y int
+}
+
+// ExcludedArea - struct defining bottom left x-y corrdinates of barren land (s)
+// and top right x-y coordinates of barren land (e)
+type ExcludedArea struct {
+	start, end Vertex
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Printf("Not enough arguments\n")
 		return
 	}
 
-	args := os.Args[1:]
+	_ = FindFertileLand(os.Args[1:])
+}
+
+// FindFertileLand - Find the area of fertile land in for a farm that has patches
+// of barren land. Barren land coordinates are provided as a string array
+// in the arguments. Each barren land region is defined by x-y coordinates for the
+// lower left point and the upper right point.
+//
+// The area of each fertile region is returned in a sorted array from small to large.
+func FindFertileLand(args []string) []int {
 	ex, err := ParseArgs(args)
 	if err != nil {
 		fmt.Printf("Error parsing arguments %s (%s)\n", args, err.Error())
+		return nil
 	}
 
 	land := BFS(ex)
@@ -73,6 +94,8 @@ func main() {
 	}
 
 	fmt.Printf("\n")
+
+	return land
 }
 
 // Delimiters -list of runes that the input string should be split on. If the provided rune
@@ -112,6 +135,8 @@ func ParseArgs(parts []string) ([]ExcludedArea, error) {
 	return excluded, nil
 }
 
+// ValidateCoordinates - Verifies that coordinates passed as a string are valid
+// integers and within the bounds of the grid
 func ValidateCoordinates(unvalidCoords [4]string) (ExcludedArea, error) {
 	var coord ExcludedArea
 	var xserr, yserr, xeerr, yeerr error
@@ -125,19 +150,19 @@ func ValidateCoordinates(unvalidCoords [4]string) (ExcludedArea, error) {
 	}
 
 	if coord.start.x < 0 || coord.start.x >= UPPERX {
-		return coord, errors.New("XSOOB")
+		return coord, errors.New("OOBXS")
 	}
 
 	if coord.start.y < 0 || coord.start.y >= UPPERY {
-		return coord, errors.New("YSOOB ")
+		return coord, errors.New("OOBYS")
 	}
 
 	if coord.end.x < 0 || coord.end.x >= UPPERX {
-		return coord, errors.New("XEOOB")
+		return coord, errors.New("OOBXE")
 	}
 
 	if coord.end.y < 0 || coord.end.y >= UPPERY {
-		return coord, errors.New("YEOOB ")
+		return coord, errors.New("OOBYE")
 	}
 
 	return coord, nil
@@ -164,6 +189,8 @@ func isVertexInbounds(p Vertex) bool {
 	return false
 }
 
+// GetAdjacentVertices - Retrieve all of the adjacent vertices for the given
+// vertex. Adjacent vertices are returned in an array of vertices
 func GetAdjacentVertices(p Vertex, ex []ExcludedArea) []Vertex {
 	var adj []Vertex
 	barren := isVertexBarren(p, ex)
