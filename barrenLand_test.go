@@ -110,6 +110,19 @@ func TestBFSCase2(t *testing.T) {
 	}
 }
 
+// Test case where no coordinates are provided (ie no barren land)
+func TestBFSCaseNoCoords(t *testing.T) {
+	var testString []string
+	expectedArea := []int{240000}
+	area := FindFertileLand(testString)
+
+	for i, v := range area {
+		if v != expectedArea[i] {
+			t.Errorf("Area calculated for test1 was not correct")
+		}
+	}
+}
+
 // Test invalid coordinates
 func TestBFSInvalid(t *testing.T) {
 	testString := []string{"48 192 351 207", "48 392 351 407",

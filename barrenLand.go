@@ -67,11 +67,6 @@ type ExcludedArea struct {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Printf("Not enough arguments\n")
-		return
-	}
-
 	_ = FindFertileLand(os.Args[1:])
 }
 
